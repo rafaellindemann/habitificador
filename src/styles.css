@@ -1,0 +1,54 @@
+:root{
+--bg:#0f0f12; /* fundo escuro */
+--card:#16161b; /* cartões */
+--muted:#8a8f98; /* textos secundários */
+--text:#f2f3f5; /* quase branco */
+--accent:#ff7a1a; /* laranja destaque */
+--accent-2:#ffa559; /* laranja claro */
+--good:#36d399; /* verde */
+--warn:#facc15; /* amarelo */
+--bad:#fb7185; /* rosa/vermelho */
+--shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+
+
+@font-face{
+font-family: 'Leicester';
+src: url('/fonts/leicester.woff2') format('woff2');
+font-display: swap;
+}
+
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+margin:0; background:var(--bg); color:var(--text);
+font-family: Leicester, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial;
+}
+
+
+.container{ max-width:1100px; margin:0 auto; padding:16px }
+.card{ background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:18px; box-shadow:var(--shadow) }
+.btn{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px; border:none; cursor:pointer; font-weight:600; transition:.2s transform ease, .2s opacity ease }
+.btn:active{ transform:translateY(1px) }
+.btn-primary{ background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#1a1a1a }
+.btn-secondary{ background:transparent; border:1px solid rgba(255,255,255,.12); color:var(--text) }
+.input, .select{
+width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:#121216; color:var(--text);
+}
+.grid{ display:grid; gap:16px }
+.grid.resp{ grid-template-columns: repeat(12, 1fr) }
+.hide-mobile{ display:none }
+@media(min-width:768px){ .hide-mobile{ display:initial } }
+
+
+.badge{ display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px dashed rgba(255,255,255,.12) }
+.progress{ height:10px; background:#111218; border-radius:999px; overflow:hidden }
+.progress > span{ display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); width:0 }
+
+
+/* micro animações */
+.fade-in{ animation:fade .35s ease both }
+@keyframes fade{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+.pulse{ animation:pulse 2s ease-in-out infinite }
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,122,26,.0)}50%{box-shadow:0 0 0 10px rgba(255,122,26,.08)}}
