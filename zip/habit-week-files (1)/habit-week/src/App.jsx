@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "habit_week_app_v3";
+const STORAGE_KEY = "habit_week_app_v2";
 
 const DEFAULT_COLORS = [
   { id: 1, name: "Verde", hex: "#55ef8b" },
@@ -10,19 +10,12 @@ const DEFAULT_COLORS = [
   { id: 5, name: "Roxo", hex: "#c39bff" },
 ];
 
-const DEFAULT_CATEGORIES = [
-  { id: 1, name: "estudo" },
-  { id: 2, name: "fit" },
-  { id: 3, name: "trabalho" },
-  { id: 4, name: "pessoal" },
-];
-
 const DEFAULT_TASKS = [
   {
     id: 1,
     type: "weekly",
     title: "Aula React",
-    categoryId: 1,
+    category: "estudo",
     daysOfWeek: [1, 3, 5],
     colorId: 1,
   },
@@ -30,7 +23,7 @@ const DEFAULT_TASKS = [
     id: 2,
     type: "weekly",
     title: "Aula Node",
-    categoryId: 1,
+    category: "estudo",
     daysOfWeek: [2],
     colorId: 1,
   },
@@ -38,7 +31,7 @@ const DEFAULT_TASKS = [
     id: 3,
     type: "one_off",
     title: "Dentista",
-    categoryId: 4,
+    category: "pessoal",
     date: "2026-03-06",
     colorId: 4,
   },
@@ -46,7 +39,7 @@ const DEFAULT_TASKS = [
     id: 4,
     type: "goal",
     title: "Academia",
-    categoryId: 2,
+    category: "fit",
     period: "week",
     target: 3,
     shorthand: "s",
@@ -56,7 +49,7 @@ const DEFAULT_TASKS = [
     id: 5,
     type: "goal",
     title: "Andar de bike",
-    categoryId: 2,
+    category: "fit",
     period: "month",
     target: 10,
     shorthand: "m",
@@ -68,7 +61,6 @@ const DEFAULT_STATE = {
   anchorDate: todayISO(),
   tasks: DEFAULT_TASKS,
   colors: DEFAULT_COLORS,
-  categories: DEFAULT_CATEGORIES,
   completions: {},
   preferences: {
     showPending: true,
@@ -174,14 +166,14 @@ function getGoalDone(task, completions, anchorDate) {
   return countCompletionsInRange(completions, task.id, s, e);
 }
 
-function isLeapYear(year) {
-  return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-}
-
 function getGoalLimit(task, anchorDate) {
   if (task.period === "week") return 7;
   if (task.period === "month") return endOfMonth(anchorDate).getDate();
   return isLeapYear(anchorDate.getFullYear()) ? 366 : 365;
+}
+
+function isLeapYear(year) {
+  return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
 }
 
 function clampGoalTarget(task, anchorDate) {
@@ -212,10 +204,6 @@ function sortTasks(a, b) {
   return order[a.type] - order[b.type] || a.title.localeCompare(b.title);
 }
 
-function sortByName(a, b) {
-  return a.name.localeCompare(b.name);
-}
-
 function buildInitialState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
@@ -225,8 +213,6 @@ function buildInitialState() {
       anchorDate: saved.anchorDate || DEFAULT_STATE.anchorDate,
       tasks: Array.isArray(saved.tasks) && saved.tasks.length ? saved.tasks : DEFAULT_TASKS,
       colors: Array.isArray(saved.colors) && saved.colors.length ? saved.colors : DEFAULT_COLORS,
-      categories:
-        Array.isArray(saved.categories) && saved.categories.length ? saved.categories : DEFAULT_CATEGORIES,
       completions: saved.completions || {},
       preferences: {
         ...DEFAULT_STATE.preferences,
@@ -238,22 +224,18 @@ function buildInitialState() {
   }
 }
 
-function nextId() {
-  return Number(Date.now() + Math.floor(Math.random() * 1000));
-}
-
-function makeEmptyTask(anchorDate, colors, categories) {
+function makeEmptyTask(anchorDate) {
   return {
-    id: nextId(),
+    id: Number(Date.now()),
     type: "weekly",
     title: "",
-    categoryId: categories[0]?.id || null,
+    category: "",
     daysOfWeek: [1],
     date: todayISO(),
     period: "week",
     target: 1,
     shorthand: "s",
-    colorId: colors[0]?.id || null,
+    colorId: 1,
     _anchorDateForValidation: toISODate(anchorDate),
   };
 }
@@ -276,21 +258,7 @@ function sanitizeTask(task, anchorDate) {
 }
 
 function getColorById(colors, id) {
-  return colors.find((color) => color.id == id) || colors[0] || { hex: "#888888", name: "Sem cor" };
-}
-
-function getCategoryById(categories, id) {
-  return categories.find((category) => category.id == id) || null;
-}
-
-function removeTaskCompletions(prev, taskId) {
-  const next = {};
-  Object.entries(prev).forEach(([date, dayMap]) => {
-    const cloned = { ...dayMap };
-    delete cloned[taskId];
-    if (Object.keys(cloned).length) next[date] = cloned;
-  });
-  return next;
+  return colors.find((color) => color.id == id) || colors[0];
 }
 
 export default function App() {
@@ -298,30 +266,25 @@ export default function App() {
 
   const [anchorDate, setAnchorDate] = useState(parseISODate(initial.anchorDate));
   const [tasks, setTasks] = useState(initial.tasks);
-  const [colors, setColors] = useState(initial.colors.sort(sortByName));
-  const [categories, setCategories] = useState(initial.categories.sort(sortByName));
+  const [colors, setColors] = useState(initial.colors);
   const [completions, setCompletions] = useState(initial.completions);
   const [showPending, setShowPending] = useState(initial.preferences.showPending);
   const [showCompleted, setShowCompleted] = useState(initial.preferences.showCompleted);
   const [editMode, setEditMode] = useState(initial.preferences.editMode);
 
   const [editingTask, setEditingTask] = useState(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
   const [colorForm, setColorForm] = useState({ name: "", hex: "#ffffff" });
-  const [categoryForm, setCategoryForm] = useState({ name: "" });
 
   useEffect(() => {
     const payload = {
       anchorDate: toISODate(anchorDate),
       tasks,
       colors,
-      categories,
       completions,
       preferences: { showPending, showCompleted, editMode },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [anchorDate, tasks, colors, categories, completions, showPending, showCompleted, editMode]);
+  }, [anchorDate, tasks, colors, completions, showPending, showCompleted, editMode]);
 
   const weekStart = useMemo(() => startOfWeekSunday(anchorDate), [anchorDate]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -356,7 +319,7 @@ export default function App() {
 
   function openNewTask() {
     setEditMode(true);
-    setEditingTask(makeEmptyTask(anchorDate, colors, categories));
+    setEditingTask(makeEmptyTask(anchorDate));
   }
 
   function openEditTask(task) {
@@ -367,8 +330,7 @@ export default function App() {
       period: task.period || "week",
       target: task.target || 1,
       shorthand: task.shorthand || "s",
-      categoryId: task.categoryId || categories[0]?.id || null,
-      colorId: task.colorId || colors[0]?.id || null,
+      category: task.category || "",
       _anchorDateForValidation: toISODate(anchorDate),
     });
   }
@@ -384,14 +346,6 @@ export default function App() {
       alert("Informe um título para a tarefa.");
       return;
     }
-    if (!editingTask.colorId) {
-      alert("Escolha uma cor para a tarefa.");
-      return;
-    }
-    if (!editingTask.categoryId) {
-      alert("Escolha uma categoria para a tarefa.");
-      return;
-    }
 
     const anchorForValidation = editingTask._anchorDateForValidation
       ? parseISODate(editingTask._anchorDateForValidation)
@@ -402,7 +356,7 @@ export default function App() {
     setTasks((prev) => {
       const exists = prev.some((task) => task.id == taskToSave.id);
       if (exists) {
-        return prev.map((task) => (task.id == taskToSave.id ? taskToSave : task)).sort(sortTasks);
+        return prev.map((task) => (task.id == taskToSave.id ? taskToSave : task));
       }
       return [...prev, taskToSave].sort(sortTasks);
     });
@@ -415,7 +369,15 @@ export default function App() {
     if (!ok) return;
 
     setTasks((prev) => prev.filter((task) => task.id != taskId));
-    setCompletions((prev) => removeTaskCompletions(prev, taskId));
+    setCompletions((prev) => {
+      const next = {};
+      Object.entries(prev).forEach(([date, dayMap]) => {
+        const cloned = { ...dayMap };
+        delete cloned[taskId];
+        if (Object.keys(cloned).length) next[date] = cloned;
+      });
+      return next;
+    });
     setEditingTask(null);
   }
 
@@ -434,12 +396,8 @@ export default function App() {
       alert("Informe um nome e uma cor hexadecimal válida, como #a1b2c3.");
       return;
     }
-    if (colors.some((color) => color.name.toLowerCase() == name.toLowerCase())) {
-      alert("Já existe uma cor com esse nome.");
-      return;
-    }
 
-    setColors((prev) => [...prev, { id: nextId(), name, hex }].sort(sortByName));
+    setColors((prev) => [...prev, { id: Number(Date.now()), name, hex }]);
     setColorForm({ name: "", hex: "#ffffff" });
   }
 
@@ -449,39 +407,7 @@ export default function App() {
       alert("Essa cor está em uso por uma tarefa. Troque a cor da tarefa antes de remover.");
       return;
     }
-    if (colors.length <= 1) {
-      alert("Mantenha pelo menos uma cor cadastrada.");
-      return;
-    }
     setColors((prev) => prev.filter((color) => color.id != colorId));
-  }
-
-  function addCategory() {
-    const name = categoryForm.name.trim().toLowerCase();
-    if (!name) {
-      alert("Informe um nome para a categoria.");
-      return;
-    }
-    if (categories.some((category) => category.name.toLowerCase() == name)) {
-      alert("Já existe uma categoria com esse nome.");
-      return;
-    }
-
-    setCategories((prev) => [...prev, { id: nextId(), name }].sort(sortByName));
-    setCategoryForm({ name: "" });
-  }
-
-  function removeCategory(categoryId) {
-    const isInUse = tasks.some((task) => task.categoryId == categoryId);
-    if (isInUse) {
-      alert("Essa categoria está em uso por uma tarefa. Troque a categoria da tarefa antes de remover.");
-      return;
-    }
-    if (categories.length <= 1) {
-      alert("Mantenha pelo menos uma categoria cadastrada.");
-      return;
-    }
-    setCategories((prev) => prev.filter((category) => category.id != categoryId));
   }
 
   function updateEditingField(key, value) {
@@ -513,9 +439,6 @@ export default function App() {
           <button onClick={goNextWeek}>▶</button>
           <button onClick={() => setEditMode((prev) => !prev)}>{editMode ? "Sair da edição" : "Modo edição"}</button>
           <button onClick={openNewTask}>Nova tarefa</button>
-          <button className="iconButton" onClick={() => setSettingsOpen(true)} title="Configurações">
-            ⚙️
-          </button>
         </div>
       </header>
 
@@ -556,7 +479,6 @@ export default function App() {
                 ) : (
                   items.map((task) => {
                     const color = getColorById(colors, task.colorId);
-                    const category = getCategoryById(categories, task.categoryId);
                     const doneDay = isDone(iso, task.id);
                     const completedByGoal = task.type === "goal" && isGoalCompleted(task, completions, anchorDate);
                     const goalLabel = task.type === "goal" ? getGoalLabel(task, completions, anchorDate) : null;
@@ -575,7 +497,7 @@ export default function App() {
                         </span>
                         <span className="chipMeta">
                           {doneDay ? <span className="badge doneBadge">✓</span> : null}
-                          {category ? <span className="badge categoryBadge">{category.name}</span> : null}
+                          {task.category ? <span className="badge categoryBadge">{task.category}</span> : null}
                         </span>
                       </button>
                     );
@@ -587,15 +509,44 @@ export default function App() {
         })}
       </section>
 
-      <section className="notesPanel panel">
-        <div className="panelTitle">Notas desta versão</div>
-        <ul className="notesList">
-          <li>Domingo como primeiro dia da semana.</li>
-          <li>Metas ficam riscadas no período inteiro quando são concluídas.</li>
-          <li>Os dias realmente executados continuam marcados com ✓ e contorno.</li>
-          <li>Cores e categorias ficam no modal de configurações.</li>
-          <li>Todo o estado continua salvo em um único registro do localStorage.</li>
-        </ul>
+      <section className="bottomPanels">
+        <div className="panel">
+          <div className="panelTitle">Paleta de cores</div>
+          <div className="colorForm">
+            <input
+              type="text"
+              placeholder="Nome da cor"
+              value={colorForm.name}
+              onChange={(e) => setColorForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+            <input
+              type="color"
+              value={colorForm.hex}
+              onChange={(e) => setColorForm((prev) => ({ ...prev, hex: e.target.value }))}
+            />
+            <button onClick={addColor}>Adicionar cor</button>
+          </div>
+
+          <div className="colorList">
+            {colors.map((color) => (
+              <div className="colorRow" key={color.id}>
+                <span className="swatch" style={{ background: color.hex }} />
+                <span className="colorName">{color.name}</span>
+                <span className="colorHex">{color.hex}</span>
+                <button className="ghost small" onClick={() => removeColor(color.id)}>Remover</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel panelSmall">
+          <div className="panelTitle">Notas da versão</div>
+          <ul className="notesList">
+            <li>IDs são numéricos e gerados automaticamente.</li>
+            <li>O app salva tudo em um único registro do localStorage para facilitar futura migração.</li>
+            <li>Metas concluídas ficam riscadas no período inteiro, mas os dias realmente executados continuam marcados com ✓.</li>
+          </ul>
+        </div>
       </section>
 
       {editingTask ? (
@@ -603,17 +554,26 @@ export default function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <h2>{tasks.some((task) => task.id == editingTask.id) ? "Editar tarefa" : "Nova tarefa"}</h2>
-              <button className="ghost" onClick={closeEditor}>Fechar</button>
+              <button className="ghost" onClick={closeEditor}>×</button>
             </div>
 
             <div className="formGrid">
-              <label className="fullWidth">
+              <label>
                 <span>Título</span>
                 <input
                   type="text"
-                  placeholder="Ex.: Academia"
                   value={editingTask.title}
                   onChange={(e) => updateEditingField("title", e.target.value)}
+                />
+              </label>
+
+              <label>
+                <span>Categoria</span>
+                <input
+                  type="text"
+                  placeholder="ex: estudo, fit, trabalho"
+                  value={editingTask.category}
+                  onChange={(e) => updateEditingField("category", e.target.value)}
                 />
               </label>
 
@@ -627,45 +587,46 @@ export default function App() {
               </label>
 
               <label>
-                <span>Categoria</span>
-                <select
-                  value={editingTask.categoryId || ""}
-                  onChange={(e) => updateEditingField("categoryId", Number(e.target.value))}
-                >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
                 <span>Cor</span>
-                <select
-                  value={editingTask.colorId || ""}
-                  onChange={(e) => updateEditingField("colorId", Number(e.target.value))}
-                >
+                <select value={editingTask.colorId} onChange={(e) => updateEditingField("colorId", Number(e.target.value))}>
                   {colors.map((color) => (
-                    <option key={color.id} value={color.id}>
-                      {color.name} ({color.hex})
-                    </option>
+                    <option key={color.id} value={color.id}>{color.name} ({color.hex})</option>
                   ))}
                 </select>
               </label>
 
-              {editingTask.type === "one_off" ? (
+              {editingTask.type == "one_off" ? (
                 <label>
                   <span>Data</span>
-                  <input
-                    type="date"
-                    value={editingTask.date}
-                    onChange={(e) => updateEditingField("date", e.target.value)}
-                  />
+                  <input type="date" value={editingTask.date} onChange={(e) => updateEditingField("date", e.target.value)} />
                 </label>
               ) : null}
 
-              {editingTask.type === "goal" ? (
+              {editingTask.type == "weekly" ? (
+                <div className="fullWidth">
+                  <span className="labelBlock">Dias da semana</span>
+                  <div className="weekChecks">
+                    {["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"].map((label, index) => (
+                      <label className="miniCheck" key={label}>
+                        <input
+                          type="checkbox"
+                          checked={editingTask.daysOfWeek.includes(index)}
+                          onChange={(e) => {
+                            const current = new Set(editingTask.daysOfWeek);
+                            if (e.target.checked) current.add(index);
+                            else current.delete(index);
+                            const next = [...current].sort((a, b) => a - b);
+                            updateEditingField("daysOfWeek", next.length ? next : [0]);
+                          }}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {editingTask.type == "goal" ? (
                 <>
                   <label>
                     <span>Período</span>
@@ -680,7 +641,7 @@ export default function App() {
                     <span>
                       Meta
                       <small>
-                        máximo {getGoalLimit(editingTask, anchorDate)}
+                        máx. {getGoalLimit(editingTask, anchorDate)}
                       </small>
                     </span>
                     <input
@@ -693,126 +654,15 @@ export default function App() {
                   </label>
                 </>
               ) : null}
-
-              {editingTask.type === "weekly" ? (
-                <div className="fullWidth">
-                  <span className="labelBlock">Dias da semana</span>
-                  <div className="weekChecks">
-                    {[
-                      { label: "DOM", value: 0 },
-                      { label: "SEG", value: 1 },
-                      { label: "TER", value: 2 },
-                      { label: "QUA", value: 3 },
-                      { label: "QUI", value: 4 },
-                      { label: "SEX", value: 5 },
-                      { label: "SÁB", value: 6 },
-                    ].map((item) => (
-                      <label key={item.value} className="miniCheck">
-                        <input
-                          type="checkbox"
-                          checked={editingTask.daysOfWeek.includes(item.value)}
-                          onChange={(e) => {
-                            const current = new Set(editingTask.daysOfWeek);
-                            if (e.target.checked) current.add(item.value);
-                            else current.delete(item.value);
-                            const next = Array.from(current).sort((a, b) => a - b);
-                            updateEditingField("daysOfWeek", next.length ? next : [0]);
-                          }}
-                        />
-                        {item.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <div className="modalActions">
-              <div>
-                {tasks.some((task) => task.id == editingTask.id) ? (
-                  <button className="danger" onClick={() => deleteTask(editingTask.id)}>
-                    Excluir
-                  </button>
-                ) : null}
-              </div>
+              {tasks.some((task) => task.id == editingTask.id) ? (
+                <button className="ghost" onClick={() => deleteTask(editingTask.id)}>Excluir</button>
+              ) : <span />}
               <div className="actionsRight">
                 <button className="ghost" onClick={closeEditor}>Cancelar</button>
                 <button onClick={saveTask}>Salvar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {settingsOpen ? (
-        <div className="modalBackdrop" onClick={() => setSettingsOpen(false)}>
-          <div className="modal settingsModal" onClick={(e) => e.stopPropagation()}>
-            <div className="modalHeader">
-              <h2>Configurações</h2>
-              <button className="ghost" onClick={() => setSettingsOpen(false)}>Fechar</button>
-            </div>
-
-            <div className="settingsGrid">
-              <div className="panel settingsPanel">
-                <div className="panelTitle">Paleta de cores</div>
-                <div className="colorForm">
-                  <input
-                    type="text"
-                    placeholder="Nome da cor"
-                    value={colorForm.name}
-                    onChange={(e) => setColorForm((prev) => ({ ...prev, name: e.target.value }))}
-                  />
-                  <input
-                    type="color"
-                    value={colorForm.hex}
-                    onChange={(e) => setColorForm((prev) => ({ ...prev, hex: e.target.value }))}
-                  />
-                  <button onClick={addColor}>Adicionar</button>
-                </div>
-
-                <div className="colorList">
-                  {colors.map((color) => (
-                    <div key={color.id} className="colorRow">
-                      <span className="swatch" style={{ background: color.hex }} />
-                      <div>
-                        <strong>{color.name}</strong>
-                        <div className="colorHex">{color.hex}</div>
-                      </div>
-                      <button className="small" onClick={() => setColorForm({ name: color.name, hex: color.hex })}>
-                        Copiar
-                      </button>
-                      <button className="small danger" onClick={() => removeColor(color.id)}>
-                        Remover
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="panel settingsPanel">
-                <div className="panelTitle">Categorias</div>
-                <div className="colorForm categoryFormGrid">
-                  <input
-                    type="text"
-                    placeholder="Nome da categoria"
-                    value={categoryForm.name}
-                    onChange={(e) => setCategoryForm({ name: e.target.value })}
-                  />
-                  <button onClick={addCategory}>Adicionar</button>
-                </div>
-
-                <div className="colorList">
-                  {categories.map((category) => (
-                    <div key={category.id} className="categoryRow">
-                      <div>
-                        <strong>{category.name}</strong>
-                      </div>
-                      <button className="small danger" onClick={() => removeCategory(category.id)}>
-                        Remover
-                      </button>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
