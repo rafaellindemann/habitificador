@@ -1,97 +1,104 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-const STORAGE_KEY = "habit_week_app_v3";
-
-const DEFAULT_COLORS = [
-  { id: 1, name: "Verde", hex: "#55ef8b" },
-  { id: 2, name: "Amarelo", hex: "#ffe66d" },
-  { id: 3, name: "Azul", hex: "#74b9ff" },
-  { id: 4, name: "Vermelho", hex: "#ff7675" },
-  { id: 5, name: "Roxo", hex: "#c39bff" },
-];
-
-const DEFAULT_CATEGORIES = [
-  { id: 1, name: "estudo" },
-  { id: 2, name: "fit" },
-  { id: 3, name: "trabalho" },
-  { id: 4, name: "pessoal" },
-];
-
-const DEFAULT_TASKS = [
-  {
-    id: 1,
-    type: "weekly",
-    title: "Aula React",
-    categoryId: 1,
-    daysOfWeek: [1, 3, 5],
-    colorId: 1,
-  },
-  {
-    id: 2,
-    type: "weekly",
-    title: "Aula Node",
-    categoryId: 1,
-    daysOfWeek: [2],
-    colorId: 1,
-  },
-  {
-    id: 3,
-    type: "one_off",
-    title: "Dentista",
-    categoryId: 4,
-    date: "2026-03-06",
-    colorId: 4,
-  },
-  {
-    id: 4,
-    type: "goal",
-    title: "Academia",
-    categoryId: 2,
-    period: "week",
-    target: 3,
-    shorthand: "s",
-    colorId: 2,
-  },
-  {
-    id: 5,
-    type: "goal",
-    title: "Andar de bike",
-    categoryId: 2,
-    period: "month",
-    target: 10,
-    shorthand: "m",
-    colorId: 3,
-  },
-];
+const STORAGE_KEY = 'habit_week_app_state_v3';
 
 const DEFAULT_STATE = {
-  anchorDate: todayISO(),
-  tasks: DEFAULT_TASKS,
-  colors: DEFAULT_COLORS,
-  categories: DEFAULT_CATEGORIES,
+  viewMode: 'week',
+  anchorDate: isoToday(),
+  editMode: false,
+  showPending: true,
+  showCompleted: true,
+  selectedCategoryId: 'all',
+  settingsOpen: false,
+  taskModalOpen: false,
+  editingTaskId: null,
+  categories: [
+    { id: 1, name: 'Estudo' },
+    { id: 2, name: 'Fit' },
+    { id: 3, name: 'Trabalho' },
+  ],
+  colors: [
+    { id: 1, name: 'Vermelho', hex: '#ef4444' },
+    { id: 2, name: 'Verde', hex: '#22c55e' },
+    { id: 3, name: 'Azul', hex: '#3b82f6' },
+    { id: 4, name: 'Amarelo', hex: '#eab308' },
+    { id: 5, name: 'Roxo', hex: '#a855f7' },
+  ],
+  tasks: [
+    {
+      id: 1001,
+      title: 'Academia',
+      type: 'goal',
+      period: 'week',
+      target: 3,
+      colorId: 2,
+      categoryId: 2,
+    },
+    {
+      id: 1002,
+      title: 'Leitura técnica',
+      type: 'goal',
+      period: 'month',
+      target: 12,
+      colorId: 4,
+      categoryId: 1,
+    },
+    {
+      id: 1003,
+      title: 'Aula React',
+      type: 'weekly',
+      daysOfWeek: [1, 3, 5],
+      colorId: 3,
+      categoryId: 1,
+    },
+    {
+      id: 1004,
+      title: 'Reunião cliente',
+      type: 'one_off',
+      date: addDaysISO(isoToday(), 2),
+      colorId: 1,
+      categoryId: 3,
+    },
+  ],
   completions: {},
-  preferences: {
-    showPending: true,
-    showCompleted: true,
-    editMode: false,
-  },
 };
 
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
+const EMPTY_FORM = {
+  title: '',
+  type: 'weekly',
+  date: isoToday(),
+  daysOfWeek: [1],
+  period: 'week',
+  target: 1,
+  colorId: 1,
+  categoryId: 1,
+};
 
-function todayISO() {
+function isoToday() {
   return toISODate(new Date());
 }
 
-function toISODate(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function toISODate(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
 function parseISODate(iso) {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addDaysISO(iso, days) {
+  return toISODate(addDays(parseISODate(iso), days));
 }
 
 function startOfWeekSunday(date) {
@@ -101,10 +108,8 @@ function startOfWeekSunday(date) {
   return d;
 }
 
-function addDays(date, amount) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + amount);
-  return d;
+function endOfWeekSunday(date) {
+  return addDays(startOfWeekSunday(date), 6);
 }
 
 function startOfMonth(date) {
@@ -123,553 +128,591 @@ function endOfYear(date) {
   return new Date(date.getFullYear(), 11, 31);
 }
 
-function sameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+function daysInMonth(date) {
+  return endOfMonth(date).getDate();
 }
 
-function weekdayLabelPT(d) {
-  const labels = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
-  return labels[d.getDay()];
+function daysInYear(date) {
+  const year = date.getFullYear();
+  const leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+  return leap ? 366 : 365;
 }
 
-function formatDayHeader(d) {
-  return `${weekdayLabelPT(d)} ${d.getDate()}/${d.getMonth() + 1}`;
-}
-
-function getPeriodBounds(period, anchorDate) {
-  if (period === "week") {
-    const start = startOfWeekSunday(anchorDate);
-    return [start, addDays(start, 6)];
-  }
-  if (period === "month") {
-    return [startOfMonth(anchorDate), endOfMonth(anchorDate)];
-  }
+function getGoalBounds(period, anchorDate) {
+  if (period == 'week') return [startOfWeekSunday(anchorDate), endOfWeekSunday(anchorDate)];
+  if (period == 'month') return [startOfMonth(anchorDate), endOfMonth(anchorDate)];
   return [startOfYear(anchorDate), endOfYear(anchorDate)];
 }
 
 function inRange(date, start, end) {
-  const t = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const s = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
-  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
-  return t >= s && t <= e;
+  const t = parseISODate(toISODate(date)).getTime();
+  return t >= parseISODate(toISODate(start)).getTime() && t <= parseISODate(toISODate(end)).getTime();
 }
 
-function countCompletionsInRange(completions, taskId, start, end) {
-  let count = 0;
-  const d = new Date(start);
-  while (d <= end) {
-    const iso = toISODate(d);
-    if (completions?.[iso]?.[taskId]) count++;
-    d.setDate(d.getDate() + 1);
-  }
-  return count;
+function getMaxTarget(period, anchorDate) {
+  if (period == 'week') return 7;
+  if (period == 'month') return daysInMonth(anchorDate);
+  return daysInYear(anchorDate);
 }
 
-function getGoalDone(task, completions, anchorDate) {
-  const [s, e] = getPeriodBounds(task.period, anchorDate);
-  return countCompletionsInRange(completions, task.id, s, e);
+function sanitizeTarget(period, target, anchorDate) {
+  const max = getMaxTarget(period, anchorDate);
+  const n = Number(target) || 1;
+  return Math.min(Math.max(1, n), max);
 }
 
-function isLeapYear(year) {
-  return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-}
-
-function getGoalLimit(task, anchorDate) {
-  if (task.period === "week") return 7;
-  if (task.period === "month") return endOfMonth(anchorDate).getDate();
-  return isLeapYear(anchorDate.getFullYear()) ? 366 : 365;
-}
-
-function clampGoalTarget(task, anchorDate) {
-  const limit = getGoalLimit(task, anchorDate);
-  return Math.max(1, Math.min(Number(task.target || 1), limit));
-}
-
-function getGoalLabel(task, completions, anchorDate) {
-  const done = getGoalDone(task, completions, anchorDate);
-  const short = task.shorthand || (task.period === "week" ? "s" : task.period === "month" ? "m" : "a");
-  return `[${done}/${task.target}:${short}]`;
-}
-
-function isGoalCompleted(task, completions, anchorDate) {
-  return getGoalDone(task, completions, anchorDate) >= task.target;
-}
-
-function taskAppliesToDate(task, date, anchorDate) {
-  const iso = toISODate(date);
-  if (task.type === "one_off") return task.date == iso;
-  if (task.type === "weekly") return task.daysOfWeek.includes(date.getDay());
-  const [start, end] = getPeriodBounds(task.period, anchorDate);
-  return inRange(date, start, end);
-}
-
-function sortTasks(a, b) {
-  const order = { weekly: 1, one_off: 2, goal: 3 };
-  return order[a.type] - order[b.type] || a.title.localeCompare(b.title);
-}
-
-function sortByName(a, b) {
-  return a.name.localeCompare(b.name);
-}
-
-function buildInitialState() {
+function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (!saved) return DEFAULT_STATE;
-
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_STATE;
+    const parsed = JSON.parse(raw);
     return {
-      anchorDate: saved.anchorDate || DEFAULT_STATE.anchorDate,
-      tasks: Array.isArray(saved.tasks) && saved.tasks.length ? saved.tasks : DEFAULT_TASKS,
-      colors: Array.isArray(saved.colors) && saved.colors.length ? saved.colors : DEFAULT_COLORS,
-      categories:
-        Array.isArray(saved.categories) && saved.categories.length ? saved.categories : DEFAULT_CATEGORIES,
-      completions: saved.completions || {},
-      preferences: {
-        ...DEFAULT_STATE.preferences,
-        ...(saved.preferences || {}),
-      },
+      ...DEFAULT_STATE,
+      ...parsed,
+      categories: parsed.categories?.length ? parsed.categories : DEFAULT_STATE.categories,
+      colors: parsed.colors?.length ? parsed.colors : DEFAULT_STATE.colors,
+      tasks: parsed.tasks?.length ? parsed.tasks : DEFAULT_STATE.tasks,
+      completions: parsed.completions || {},
     };
   } catch {
     return DEFAULT_STATE;
   }
 }
 
-function nextId() {
-  return Number(Date.now() + Math.floor(Math.random() * 1000));
+function getDayLabel(date) {
+  return ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'][date.getDay()];
 }
 
-function makeEmptyTask(anchorDate, colors, categories) {
+function getShortPeriod(period) {
+  if (period == 'week') return 's';
+  if (period == 'month') return 'm';
+  return 'a';
+}
+
+function countCompletions(taskId, start, end, completions) {
+  let count = 0;
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    const iso = toISODate(cursor);
+    if (completions[iso]?.[taskId]) count += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
+}
+
+function getTaskDoneOnDate(taskId, iso, completions) {
+  return !!completions[iso]?.[taskId];
+}
+
+function taskAppliesToDate(task, date, anchorDate) {
+  const iso = toISODate(date);
+
+  if (task.type == 'one_off') return task.date == iso;
+  if (task.type == 'weekly') return task.daysOfWeek.includes(date.getDay());
+
+  const [start, end] = getGoalBounds(task.period, anchorDate);
+  return inRange(date, start, end);
+}
+
+function getGoalStats(task, completions, anchorDate) {
+  const [start, end] = getGoalBounds(task.period, anchorDate);
+  const done = countCompletions(task.id, start, end, completions);
   return {
-    id: nextId(),
-    type: "weekly",
-    title: "",
-    categoryId: categories[0]?.id || null,
-    daysOfWeek: [1],
-    date: todayISO(),
-    period: "week",
-    target: 1,
-    shorthand: "s",
-    colorId: colors[0]?.id || null,
-    _anchorDateForValidation: toISODate(anchorDate),
+    done,
+    target: task.target,
+    completed: done >= task.target,
+    label: `[${done}/${task.target}:${getShortPeriod(task.period)}]`,
   };
 }
 
-function sanitizeTask(task, anchorDate) {
-  const base = { ...task };
-  if (base.type === "goal") {
-    base.target = clampGoalTarget(base, anchorDate);
-    base.shorthand = base.period === "week" ? "s" : base.period === "month" ? "m" : "a";
+function getColorById(colors, colorId) {
+  return colors.find((color) => color.id == colorId) || colors[0];
+}
+
+function getCategoryById(categories, categoryId) {
+  return categories.find((category) => category.id == categoryId) || null;
+}
+
+function getInitialForm(state) {
+  return {
+    ...EMPTY_FORM,
+    colorId: state.colors[0]?.id || 1,
+    categoryId: state.categories[0]?.id || 1,
+    target: 1,
+  };
+}
+
+function buildMonthGrid(anchorDate) {
+  const monthStart = startOfMonth(anchorDate);
+  const gridStart = startOfWeekSunday(monthStart);
+  const days = [];
+  for (let i = 0; i < 42; i += 1) {
+    days.push(addDays(gridStart, i));
   }
-  if (base.type !== "weekly") delete base.daysOfWeek;
-  if (base.type !== "one_off") delete base.date;
-  if (base.type !== "goal") {
-    delete base.period;
-    delete base.target;
-    delete base.shorthand;
+  return days;
+}
+
+function useFullscreen(containerRef) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    function onChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  function toggle() {
+    const node = containerRef.current;
+    if (!node) return;
+
+    if (!document.fullscreenElement) {
+      node.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
   }
-  delete base._anchorDateForValidation;
-  return base;
-}
 
-function getColorById(colors, id) {
-  return colors.find((color) => color.id == id) || colors[0] || { hex: "#888888", name: "Sem cor" };
-}
-
-function getCategoryById(categories, id) {
-  return categories.find((category) => category.id == id) || null;
-}
-
-function removeTaskCompletions(prev, taskId) {
-  const next = {};
-  Object.entries(prev).forEach(([date, dayMap]) => {
-    const cloned = { ...dayMap };
-    delete cloned[taskId];
-    if (Object.keys(cloned).length) next[date] = cloned;
-  });
-  return next;
+  return { isFullscreen, toggle };
 }
 
 export default function App() {
-  const initial = useMemo(() => buildInitialState(), []);
-
-  const [anchorDate, setAnchorDate] = useState(parseISODate(initial.anchorDate));
-  const [tasks, setTasks] = useState(initial.tasks);
-  const [colors, setColors] = useState(initial.colors.sort(sortByName));
-  const [categories, setCategories] = useState(initial.categories.sort(sortByName));
-  const [completions, setCompletions] = useState(initial.completions);
-  const [showPending, setShowPending] = useState(initial.preferences.showPending);
-  const [showCompleted, setShowCompleted] = useState(initial.preferences.showCompleted);
-  const [editMode, setEditMode] = useState(initial.preferences.editMode);
-
-  const [editingTask, setEditingTask] = useState(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const [colorForm, setColorForm] = useState({ name: "", hex: "#ffffff" });
-  const [categoryForm, setCategoryForm] = useState({ name: "" });
+  const [state, setState] = useState(loadState);
+  const [taskForm, setTaskForm] = useState(getInitialForm(loadState()));
+  const [colorForm, setColorForm] = useState({ name: '', hex: '#22c55e' });
+  const [categoryForm, setCategoryForm] = useState({ name: '' });
+  const shellRef = useRef(null);
+  const { isFullscreen, toggle } = useFullscreen(shellRef);
 
   useEffect(() => {
-    const payload = {
-      anchorDate: toISODate(anchorDate),
-      tasks,
-      colors,
-      categories,
-      completions,
-      preferences: { showPending, showCompleted, editMode },
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [anchorDate, tasks, colors, categories, completions, showPending, showCompleted, editMode]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
-  const weekStart = useMemo(() => startOfWeekSunday(anchorDate), [anchorDate]);
-  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const anchorDate = useMemo(() => parseISODate(state.anchorDate), [state.anchorDate]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(startOfWeekSunday(anchorDate), index)), [anchorDate]);
+  const monthDays = useMemo(() => buildMonthGrid(anchorDate), [anchorDate]);
 
-  function toggleDone(dateISO, taskId) {
-    setCompletions((prev) => {
-      const next = { ...prev };
-      const day = { ...(next[dateISO] || {}) };
-      if (day[taskId]) delete day[taskId];
-      else day[taskId] = true;
-      if (Object.keys(day).length) next[dateISO] = day;
-      else delete next[dateISO];
-      return next;
-    });
+  useEffect(() => {
+    setTaskForm((prev) => ({
+      ...prev,
+      colorId: state.colors.some((c) => c.id == prev.colorId) ? prev.colorId : (state.colors[0]?.id || 1),
+      categoryId: state.categories.some((c) => c.id == prev.categoryId) ? prev.categoryId : (state.categories[0]?.id || 1),
+      target: sanitizeTarget(prev.period, prev.target, anchorDate),
+    }));
+  }, [state.colors, state.categories, anchorDate]);
+
+  function patchState(partial) {
+    setState((current) => ({ ...current, ...partial }));
   }
 
-  function isDone(dateISO, taskId) {
-    return !!completions?.[dateISO]?.[taskId];
+  function openNewTaskModal() {
+    setTaskForm(getInitialForm(state));
+    patchState({ taskModalOpen: true, editingTaskId: null });
   }
 
-  function goPrevWeek() {
-    setAnchorDate((prev) => addDays(prev, -7));
-  }
-
-  function goNextWeek() {
-    setAnchorDate((prev) => addDays(prev, 7));
-  }
-
-  function goToday() {
-    setAnchorDate(new Date());
-  }
-
-  function openNewTask() {
-    setEditMode(true);
-    setEditingTask(makeEmptyTask(anchorDate, colors, categories));
-  }
-
-  function openEditTask(task) {
-    setEditingTask({
-      ...task,
-      daysOfWeek: task.daysOfWeek || [1],
-      date: task.date || todayISO(),
-      period: task.period || "week",
+  function openEditTaskModal(task) {
+    setTaskForm({
+      title: task.title,
+      type: task.type,
+      date: task.date || state.anchorDate,
+      daysOfWeek: task.daysOfWeek || [0],
+      period: task.period || 'week',
       target: task.target || 1,
-      shorthand: task.shorthand || "s",
-      categoryId: task.categoryId || categories[0]?.id || null,
-      colorId: task.colorId || colors[0]?.id || null,
-      _anchorDateForValidation: toISODate(anchorDate),
+      colorId: task.colorId,
+      categoryId: task.categoryId,
     });
+    patchState({ taskModalOpen: true, editingTaskId: task.id });
   }
 
-  function closeEditor() {
-    setEditingTask(null);
+  function closeTaskModal() {
+    patchState({ taskModalOpen: false, editingTaskId: null });
   }
 
-  function saveTask() {
-    if (!editingTask) return;
-    const title = editingTask.title.trim();
-    if (!title) {
-      alert("Informe um título para a tarefa.");
-      return;
-    }
-    if (!editingTask.colorId) {
-      alert("Escolha uma cor para a tarefa.");
-      return;
-    }
-    if (!editingTask.categoryId) {
-      alert("Escolha uma categoria para a tarefa.");
-      return;
-    }
-
-    const anchorForValidation = editingTask._anchorDateForValidation
-      ? parseISODate(editingTask._anchorDateForValidation)
-      : anchorDate;
-
-    const taskToSave = sanitizeTask({ ...editingTask, title }, anchorForValidation);
-
-    setTasks((prev) => {
-      const exists = prev.some((task) => task.id == taskToSave.id);
-      if (exists) {
-        return prev.map((task) => (task.id == taskToSave.id ? taskToSave : task)).sort(sortTasks);
+  function toggleCompletion(task, iso) {
+    setState((current) => {
+      const day = { ...(current.completions[iso] || {}) };
+      if (day[task.id]) {
+        delete day[task.id];
+      } else {
+        day[task.id] = true;
       }
-      return [...prev, taskToSave].sort(sortTasks);
+      const completions = { ...current.completions };
+      if (Object.keys(day).length) completions[iso] = day;
+      else delete completions[iso];
+      return { ...current, completions };
     });
+  }
 
-    setEditingTask(null);
+  function handleTaskClick(task, iso) {
+    if (state.editMode) {
+      openEditTaskModal(task);
+      return;
+    }
+    toggleCompletion(task, iso);
+  }
+
+  function handleTaskFormSubmit(event) {
+    event.preventDefault();
+
+    const trimmedTitle = taskForm.title.trim();
+    if (!trimmedTitle) return;
+    if (!state.categories.length || !state.colors.length) return;
+
+    const normalized = {
+      title: trimmedTitle,
+      type: taskForm.type,
+      colorId: Number(taskForm.colorId),
+      categoryId: Number(taskForm.categoryId),
+      ...(taskForm.type == 'one_off' ? { date: taskForm.date } : {}),
+      ...(taskForm.type == 'weekly' ? { daysOfWeek: [...taskForm.daysOfWeek].sort((a, b) => a - b) } : {}),
+      ...(taskForm.type == 'goal'
+        ? {
+            period: taskForm.period,
+            target: sanitizeTarget(taskForm.period, taskForm.target, anchorDate),
+          }
+        : {}),
+    };
+
+    setState((current) => {
+      const editingTaskId = current.editingTaskId;
+      const tasks = editingTaskId
+        ? current.tasks.map((task) => (task.id == editingTaskId ? { ...task, ...normalized } : task))
+        : [...current.tasks, { id: Date.now(), ...normalized }];
+      return {
+        ...current,
+        tasks,
+        taskModalOpen: false,
+        editingTaskId: null,
+      };
+    });
   }
 
   function deleteTask(taskId) {
-    const ok = window.confirm("Excluir esta tarefa?");
-    if (!ok) return;
+    setState((current) => {
+      const tasks = current.tasks.filter((task) => task.id != taskId);
+      const completions = Object.fromEntries(
+        Object.entries(current.completions)
+          .map(([date, dayMap]) => [
+            date,
+            Object.fromEntries(Object.entries(dayMap).filter(([id]) => Number(id) != taskId)),
+          ])
+          .filter(([, dayMap]) => Object.keys(dayMap).length)
+      );
 
-    setTasks((prev) => prev.filter((task) => task.id != taskId));
-    setCompletions((prev) => removeTaskCompletions(prev, taskId));
-    setEditingTask(null);
-  }
-
-  function handleChipClick(task, iso) {
-    if (editMode) {
-      openEditTask(task);
-      return;
-    }
-    toggleDone(iso, task.id);
-  }
-
-  function addColor() {
-    const name = colorForm.name.trim();
-    const hex = colorForm.hex.trim();
-    if (!name || !/^#[0-9a-fA-F]{6}$/.test(hex)) {
-      alert("Informe um nome e uma cor hexadecimal válida, como #a1b2c3.");
-      return;
-    }
-    if (colors.some((color) => color.name.toLowerCase() == name.toLowerCase())) {
-      alert("Já existe uma cor com esse nome.");
-      return;
-    }
-
-    setColors((prev) => [...prev, { id: nextId(), name, hex }].sort(sortByName));
-    setColorForm({ name: "", hex: "#ffffff" });
-  }
-
-  function removeColor(colorId) {
-    const isInUse = tasks.some((task) => task.colorId == colorId);
-    if (isInUse) {
-      alert("Essa cor está em uso por uma tarefa. Troque a cor da tarefa antes de remover.");
-      return;
-    }
-    if (colors.length <= 1) {
-      alert("Mantenha pelo menos uma cor cadastrada.");
-      return;
-    }
-    setColors((prev) => prev.filter((color) => color.id != colorId));
-  }
-
-  function addCategory() {
-    const name = categoryForm.name.trim().toLowerCase();
-    if (!name) {
-      alert("Informe um nome para a categoria.");
-      return;
-    }
-    if (categories.some((category) => category.name.toLowerCase() == name)) {
-      alert("Já existe uma categoria com esse nome.");
-      return;
-    }
-
-    setCategories((prev) => [...prev, { id: nextId(), name }].sort(sortByName));
-    setCategoryForm({ name: "" });
-  }
-
-  function removeCategory(categoryId) {
-    const isInUse = tasks.some((task) => task.categoryId == categoryId);
-    if (isInUse) {
-      alert("Essa categoria está em uso por uma tarefa. Troque a categoria da tarefa antes de remover.");
-      return;
-    }
-    if (categories.length <= 1) {
-      alert("Mantenha pelo menos uma categoria cadastrada.");
-      return;
-    }
-    setCategories((prev) => prev.filter((category) => category.id != categoryId));
-  }
-
-  function updateEditingField(key, value) {
-    setEditingTask((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, [key]: value };
-      if (key === "period") {
-        next.shorthand = value === "week" ? "s" : value === "month" ? "m" : "a";
-        next.target = clampGoalTarget(next, anchorDate);
-      }
-      if (key === "target") {
-        next.target = clampGoalTarget({ ...next, target: Number(value || 1) }, anchorDate);
-      }
-      return next;
+      return {
+        ...current,
+        tasks,
+        completions,
+        taskModalOpen: current.editingTaskId == taskId ? false : current.taskModalOpen,
+        editingTaskId: current.editingTaskId == taskId ? null : current.editingTaskId,
+      };
     });
   }
 
+  function addColor(event) {
+    event.preventDefault();
+    const name = colorForm.name.trim();
+    const hex = colorForm.hex.trim();
+    if (!name || !/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+    setState((current) => ({
+      ...current,
+      colors: [...current.colors, { id: Date.now(), name, hex }],
+    }));
+    setColorForm({ name: '', hex: '#22c55e' });
+  }
+
+  function removeColor(colorId) {
+    setState((current) => {
+      if (current.colors.length <= 1) return current;
+      const fallbackId = current.colors.find((color) => color.id != colorId)?.id;
+      return {
+        ...current,
+        colors: current.colors.filter((color) => color.id != colorId),
+        tasks: current.tasks.map((task) => ({
+          ...task,
+          colorId: task.colorId == colorId ? fallbackId : task.colorId,
+        })),
+      };
+    });
+  }
+
+  function addCategory(event) {
+    event.preventDefault();
+    const name = categoryForm.name.trim();
+    if (!name) return;
+    setState((current) => ({
+      ...current,
+      categories: [...current.categories, { id: Date.now(), name }],
+    }));
+    setCategoryForm({ name: '' });
+  }
+
+  function removeCategory(categoryId) {
+    setState((current) => {
+      if (current.categories.length <= 1) return current;
+      const fallbackId = current.categories.find((category) => category.id != categoryId)?.id;
+      return {
+        ...current,
+        categories: current.categories.filter((category) => category.id != categoryId),
+        tasks: current.tasks.map((task) => ({
+          ...task,
+          categoryId: task.categoryId == categoryId ? fallbackId : task.categoryId,
+        })),
+        selectedCategoryId: current.selectedCategoryId == String(categoryId) ? 'all' : current.selectedCategoryId,
+      };
+    });
+  }
+
+  function shiftPeriod(direction) {
+    const base = parseISODate(state.anchorDate);
+    let next;
+    if (state.viewMode == 'week') next = addDays(base, direction * 7);
+    else next = new Date(base.getFullYear(), base.getMonth() + direction, 1);
+    patchState({ anchorDate: toISODate(next) });
+  }
+
+  function visibleTasksForDate(date) {
+    const iso = toISODate(date);
+    return state.tasks
+      .filter((task) => taskAppliesToDate(task, date, anchorDate))
+      .filter((task) => {
+        if (state.selectedCategoryId == 'all') return true;
+        return String(task.categoryId) == state.selectedCategoryId;
+      })
+      .filter((task) => {
+        const doneToday = getTaskDoneOnDate(task.id, iso, state.completions);
+        const goalCompleted = task.type == 'goal' ? getGoalStats(task, state.completions, anchorDate).completed : false;
+        const isCompleted = doneToday || goalCompleted;
+        if (!state.showCompleted && isCompleted) return false;
+        if (!state.showPending && !isCompleted) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const order = { one_off: 1, weekly: 2, goal: 3 };
+        return order[a.type] - order[b.type] || a.title.localeCompare(b.title, 'pt-BR');
+      });
+  }
+
+  function renderTaskChip(task, date) {
+    const iso = toISODate(date);
+    const color = getColorById(state.colors, task.colorId);
+    const category = getCategoryById(state.categories, task.categoryId);
+    const doneToday = getTaskDoneOnDate(task.id, iso, state.completions);
+    const goalStats = task.type == 'goal' ? getGoalStats(task, state.completions, anchorDate) : null;
+    const goalCompleted = !!goalStats?.completed;
+
+    return (
+      <button
+        key={`${iso}-${task.id}`}
+        className={`taskChip ${doneToday ? 'doneDay' : ''} ${goalCompleted ? 'goalCompleted' : ''}`}
+        onClick={() => handleTaskClick(task, iso)}
+        style={{ '--task-color': color?.hex || '#3b82f6' }}
+        title={state.editMode ? 'Editar tarefa' : 'Marcar/desmarcar'}
+      >
+        <span className="taskTopline">
+          {task.type == 'goal' && <span className="goalBadge">{goalStats.label}</span>}
+          {doneToday && <span className="doneMark">✓</span>}
+          <span className="taskCategory">{category?.name || 'Sem categoria'}</span>
+        </span>
+        <span className="taskTitle">{task.title}</span>
+      </button>
+    );
+  }
+
+  const currentTitle =
+    state.viewMode == 'week'
+      ? `${toISODate(startOfWeekSunday(anchorDate))} → ${toISODate(endOfWeekSunday(anchorDate))}`
+      : anchorDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
   return (
-    <div className="app">
+    <div className={`appShell ${isFullscreen ? 'isFullscreen' : ''}`} ref={shellRef}>
       <header className="topbar">
         <div>
-          <h1>Habit Week</h1>
-          <div className="subtitle">Semana de {toISODate(weekStart)}</div>
+          <h1>Habit Calendar</h1>
+          <p>{currentTitle}</p>
         </div>
 
-        <div className="toolbar">
-          <button onClick={goPrevWeek}>◀</button>
-          <button onClick={goToday}>Hoje</button>
-          <button onClick={goNextWeek}>▶</button>
-          <button onClick={() => setEditMode((prev) => !prev)}>{editMode ? "Sair da edição" : "Modo edição"}</button>
-          <button onClick={openNewTask}>Nova tarefa</button>
-          <button className="iconButton" onClick={() => setSettingsOpen(true)} title="Configurações">
-            ⚙️
+        <div className="toolbarGroup">
+          <button onClick={() => shiftPeriod(-1)}>◀</button>
+          <button onClick={() => patchState({ anchorDate: isoToday() })}>Hoje</button>
+          <button onClick={() => shiftPeriod(1)}>▶</button>
+          <button onClick={() => patchState({ viewMode: state.viewMode == 'week' ? 'month' : 'week' })}>
+            {state.viewMode == 'week' ? 'Modo mês' : 'Modo semana'}
           </button>
+          <button onClick={() => patchState({ editMode: !state.editMode })} className={state.editMode ? 'active' : ''}>
+            {state.editMode ? 'Editando' : 'Modo edição'}
+          </button>
+          <button onClick={openNewTaskModal}>+ Nova tarefa</button>
+          <button onClick={() => patchState({ settingsOpen: true })} aria-label="Configurações">⚙️</button>
+          <button onClick={toggle}>{isFullscreen ? 'Sair tela cheia' : 'Tela cheia'}</button>
         </div>
       </header>
 
-      <section className="controlsBar">
-        <label className="checkline">
-          <input type="checkbox" checked={showPending} onChange={(e) => setShowPending(e.target.checked)} />
+      <section className="filtersBar">
+        <label className="checkItem">
+          <input
+            type="checkbox"
+            checked={state.showPending}
+            onChange={(event) => patchState({ showPending: event.target.checked })}
+          />
           Mostrar pendentes
         </label>
-        <label className="checkline">
-          <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
+
+        <label className="checkItem">
+          <input
+            type="checkbox"
+            checked={state.showCompleted}
+            onChange={(event) => patchState({ showCompleted: event.target.checked })}
+          />
           Mostrar concluídos
+        </label>
+
+        <label className="selectWrap">
+          Categoria
+          <select
+            value={state.selectedCategoryId}
+            onChange={(event) => patchState({ selectedCategoryId: event.target.value })}
+          >
+            <option value="all">Todas</option>
+            {state.categories.map((category) => (
+              <option key={category.id} value={String(category.id)}>{category.name}</option>
+            ))}
+          </select>
         </label>
       </section>
 
-      <section className="grid">
-        {weekDays.map((date) => {
-          const iso = toISODate(date);
-          const isToday = sameDay(date, new Date());
-
-          const items = tasks
-            .filter((task) => taskAppliesToDate(task, date, anchorDate))
-            .filter((task) => {
-              const doneDay = isDone(iso, task.id);
-              const completedByGoal = task.type === "goal" && isGoalCompleted(task, completions, anchorDate);
-              const completed = doneDay || completedByGoal;
-              if (completed && !showCompleted) return false;
-              if (!completed && !showPending) return false;
-              return true;
-            })
-            .sort(sortTasks);
-
-          return (
-            <div className={`day ${isToday ? "today" : ""}`} key={iso}>
-              <div className="dayHeader">{formatDayHeader(date)}</div>
-              <div className="items">
-                {items.length == 0 ? (
-                  <div className="empty">—</div>
-                ) : (
-                  items.map((task) => {
-                    const color = getColorById(colors, task.colorId);
-                    const category = getCategoryById(categories, task.categoryId);
-                    const doneDay = isDone(iso, task.id);
-                    const completedByGoal = task.type === "goal" && isGoalCompleted(task, completions, anchorDate);
-                    const goalLabel = task.type === "goal" ? getGoalLabel(task, completions, anchorDate) : null;
-
-                    return (
-                      <button
-                        key={`${iso}-${task.id}`}
-                        className={`chip ${doneDay ? "doneDay" : ""} ${completedByGoal ? "goalCompleted" : ""}`}
-                        style={{ "--chip-color": color?.hex || "#888888" }}
-                        onClick={() => handleChipClick(task, iso)}
-                        title={editMode ? "Editar tarefa" : "Marcar/desmarcar"}
-                      >
-                        <span className="chipMain">
-                          {goalLabel ? <span className="prefix">{goalLabel}</span> : null}
-                          <span className="labelText">{task.title}</span>
-                        </span>
-                        <span className="chipMeta">
-                          {doneDay ? <span className="badge doneBadge">✓</span> : null}
-                          {category ? <span className="badge categoryBadge">{category.name}</span> : null}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
+      {state.viewMode == 'week' ? (
+        <section className="calendarGrid weekView">
+          {weekDays.map((date) => {
+            const iso = toISODate(date);
+            const items = visibleTasksForDate(date);
+            return (
+              <div className="dayCell" key={iso}>
+                <div className="dayHeader">
+                  <strong>{getDayLabel(date)}</strong>
+                  <span>{date.getDate()}/{date.getMonth() + 1}</span>
+                </div>
+                <div className="dayItems">
+                  {items.length ? items.map((task) => renderTaskChip(task, date)) : <span className="emptyState">—</span>}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </section>
+            );
+          })}
+        </section>
+      ) : (
+        <section className="monthBoard">
+          <div className="monthHead">
+            {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((label) => (
+              <div key={label} className="monthHeadCell">{label}</div>
+            ))}
+          </div>
+          <div className="calendarGrid monthView">
+            {monthDays.map((date) => {
+              const iso = toISODate(date);
+              const outside = date.getMonth() != anchorDate.getMonth();
+              const items = visibleTasksForDate(date);
+              return (
+                <div className={`dayCell monthCell ${outside ? 'outsideMonth' : ''}`} key={iso}>
+                  <div className="dayHeader monthDayHeader">
+                    <strong>{date.getDate()}</strong>
+                    <span>{getDayLabel(date)}</span>
+                  </div>
+                  <div className="dayItems compactItems">
+                    {items.length ? items.map((task) => renderTaskChip(task, date)) : <span className="emptyState">—</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-      <section className="notesPanel panel">
-        <div className="panelTitle">Notas desta versão</div>
-        <ul className="notesList">
-          <li>Domingo como primeiro dia da semana.</li>
-          <li>Metas ficam riscadas no período inteiro quando são concluídas.</li>
-          <li>Os dias realmente executados continuam marcados com ✓ e contorno.</li>
-          <li>Cores e categorias ficam no modal de configurações.</li>
-          <li>Todo o estado continua salvo em um único registro do localStorage.</li>
-        </ul>
-      </section>
-
-      {editingTask ? (
-        <div className="modalBackdrop" onClick={closeEditor}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+      {state.taskModalOpen && (
+        <div className="modalBackdrop" onClick={closeTaskModal}>
+          <div className="modalCard" onClick={(event) => event.stopPropagation()}>
             <div className="modalHeader">
-              <h2>{tasks.some((task) => task.id == editingTask.id) ? "Editar tarefa" : "Nova tarefa"}</h2>
-              <button className="ghost" onClick={closeEditor}>Fechar</button>
+              <h2>{state.editingTaskId ? 'Editar tarefa' : 'Nova tarefa'}</h2>
+              <button onClick={closeTaskModal}>✕</button>
             </div>
 
-            <div className="formGrid">
-              <label className="fullWidth">
-                <span>Título</span>
+            <form className="formGrid" onSubmit={handleTaskFormSubmit}>
+              <label>
+                Título
                 <input
-                  type="text"
-                  placeholder="Ex.: Academia"
-                  value={editingTask.title}
-                  onChange={(e) => updateEditingField("title", e.target.value)}
+                  value={taskForm.title}
+                  onChange={(event) => setTaskForm((prev) => ({ ...prev, title: event.target.value }))}
+                  placeholder="Ex: Academia"
                 />
               </label>
 
               <label>
-                <span>Tipo</span>
-                <select value={editingTask.type} onChange={(e) => updateEditingField("type", e.target.value)}>
-                  <option value="weekly">Recorrente semanal</option>
+                Tipo
+                <select
+                  value={taskForm.type}
+                  onChange={(event) => setTaskForm((prev) => ({ ...prev, type: event.target.value }))}
+                >
                   <option value="one_off">Pontual</option>
+                  <option value="weekly">Recorrente semanal</option>
                   <option value="goal">Meta por período</option>
                 </select>
               </label>
 
-              <label>
-                <span>Categoria</span>
-                <select
-                  value={editingTask.categoryId || ""}
-                  onChange={(e) => updateEditingField("categoryId", Number(e.target.value))}
-                >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Cor</span>
-                <select
-                  value={editingTask.colorId || ""}
-                  onChange={(e) => updateEditingField("colorId", Number(e.target.value))}
-                >
-                  {colors.map((color) => (
-                    <option key={color.id} value={color.id}>
-                      {color.name} ({color.hex})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {editingTask.type === "one_off" ? (
+              {taskForm.type == 'one_off' && (
                 <label>
-                  <span>Data</span>
+                  Data
                   <input
                     type="date"
-                    value={editingTask.date}
-                    onChange={(e) => updateEditingField("date", e.target.value)}
+                    value={taskForm.date}
+                    onChange={(event) => setTaskForm((prev) => ({ ...prev, date: event.target.value }))}
                   />
                 </label>
-              ) : null}
+              )}
 
-              {editingTask.type === "goal" ? (
+              {taskForm.type == 'weekly' && (
+                <div className="weekdaySelector">
+                  <span>Dias da semana</span>
+                  <div className="weekdayButtons">
+                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, index) => {
+                      const active = taskForm.daysOfWeek.includes(index);
+                      return (
+                        <button
+                          key={`${label}-${index}`}
+                          type="button"
+                          className={active ? 'weekdayActive' : ''}
+                          onClick={() => {
+                            setTaskForm((prev) => {
+                              const exists = prev.daysOfWeek.includes(index);
+                              const daysOfWeek = exists
+                                ? prev.daysOfWeek.filter((day) => day != index)
+                                : [...prev.daysOfWeek, index];
+                              return { ...prev, daysOfWeek: daysOfWeek.length ? daysOfWeek : [index] };
+                            });
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {taskForm.type == 'goal' && (
                 <>
                   <label>
-                    <span>Período</span>
-                    <select value={editingTask.period} onChange={(e) => updateEditingField("period", e.target.value)}>
+                    Período
+                    <select
+                      value={taskForm.period}
+                      onChange={(event) => {
+                        const period = event.target.value;
+                        setTaskForm((prev) => ({
+                          ...prev,
+                          period,
+                          target: sanitizeTarget(period, prev.target, anchorDate),
+                        }));
+                      }}
+                    >
                       <option value="week">Semanal</option>
                       <option value="month">Mensal</option>
                       <option value="year">Anual</option>
@@ -677,147 +720,118 @@ export default function App() {
                   </label>
 
                   <label>
-                    <span>
-                      Meta
-                      <small>
-                        máximo {getGoalLimit(editingTask, anchorDate)}
-                      </small>
-                    </span>
+                    Meta
                     <input
                       type="number"
                       min="1"
-                      max={getGoalLimit(editingTask, anchorDate)}
-                      value={editingTask.target}
-                      onChange={(e) => updateEditingField("target", e.target.value)}
+                      max={getMaxTarget(taskForm.period, anchorDate)}
+                      value={taskForm.target}
+                      onChange={(event) => {
+                        const value = sanitizeTarget(taskForm.period, event.target.value, anchorDate);
+                        setTaskForm((prev) => ({ ...prev, target: value }));
+                      }}
                     />
+                    <small>Máximo atual: {getMaxTarget(taskForm.period, anchorDate)}</small>
                   </label>
                 </>
-              ) : null}
+              )}
 
-              {editingTask.type === "weekly" ? (
-                <div className="fullWidth">
-                  <span className="labelBlock">Dias da semana</span>
-                  <div className="weekChecks">
-                    {[
-                      { label: "DOM", value: 0 },
-                      { label: "SEG", value: 1 },
-                      { label: "TER", value: 2 },
-                      { label: "QUA", value: 3 },
-                      { label: "QUI", value: 4 },
-                      { label: "SEX", value: 5 },
-                      { label: "SÁB", value: 6 },
-                    ].map((item) => (
-                      <label key={item.value} className="miniCheck">
-                        <input
-                          type="checkbox"
-                          checked={editingTask.daysOfWeek.includes(item.value)}
-                          onChange={(e) => {
-                            const current = new Set(editingTask.daysOfWeek);
-                            if (e.target.checked) current.add(item.value);
-                            else current.delete(item.value);
-                            const next = Array.from(current).sort((a, b) => a - b);
-                            updateEditingField("daysOfWeek", next.length ? next : [0]);
-                          }}
-                        />
-                        {item.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+              <label>
+                Categoria
+                <select
+                  value={taskForm.categoryId}
+                  onChange={(event) => setTaskForm((prev) => ({ ...prev, categoryId: Number(event.target.value) }))}
+                >
+                  {state.categories.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+              </label>
 
-            <div className="modalActions">
-              <div>
-                {tasks.some((task) => task.id == editingTask.id) ? (
-                  <button className="danger" onClick={() => deleteTask(editingTask.id)}>
+              <label>
+                Cor
+                <select
+                  value={taskForm.colorId}
+                  onChange={(event) => setTaskForm((prev) => ({ ...prev, colorId: Number(event.target.value) }))}
+                >
+                  {state.colors.map((color) => (
+                    <option key={color.id} value={color.id}>{color.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="formActions">
+                {state.editingTaskId && (
+                  <button type="button" className="danger" onClick={() => deleteTask(state.editingTaskId)}>
                     Excluir
                   </button>
-                ) : null}
+                )}
+                <button type="submit">Salvar</button>
               </div>
-              <div className="actionsRight">
-                <button className="ghost" onClick={closeEditor}>Cancelar</button>
-                <button onClick={saveTask}>Salvar</button>
-              </div>
-            </div>
+            </form>
           </div>
         </div>
-      ) : null}
+      )}
 
-      {settingsOpen ? (
-        <div className="modalBackdrop" onClick={() => setSettingsOpen(false)}>
-          <div className="modal settingsModal" onClick={(e) => e.stopPropagation()}>
+      {state.settingsOpen && (
+        <div className="modalBackdrop" onClick={() => patchState({ settingsOpen: false })}>
+          <div className="modalCard settingsCard" onClick={(event) => event.stopPropagation()}>
             <div className="modalHeader">
               <h2>Configurações</h2>
-              <button className="ghost" onClick={() => setSettingsOpen(false)}>Fechar</button>
+              <button onClick={() => patchState({ settingsOpen: false })}>✕</button>
             </div>
 
             <div className="settingsGrid">
-              <div className="panel settingsPanel">
-                <div className="panelTitle">Paleta de cores</div>
-                <div className="colorForm">
+              <section>
+                <h3>Cores</h3>
+                <form className="inlineForm" onSubmit={addColor}>
                   <input
-                    type="text"
-                    placeholder="Nome da cor"
                     value={colorForm.name}
-                    onChange={(e) => setColorForm((prev) => ({ ...prev, name: e.target.value }))}
+                    onChange={(event) => setColorForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Nome"
                   />
                   <input
                     type="color"
                     value={colorForm.hex}
-                    onChange={(e) => setColorForm((prev) => ({ ...prev, hex: e.target.value }))}
+                    onChange={(event) => setColorForm((prev) => ({ ...prev, hex: event.target.value }))}
                   />
-                  <button onClick={addColor}>Adicionar</button>
-                </div>
-
-                <div className="colorList">
-                  {colors.map((color) => (
-                    <div key={color.id} className="colorRow">
-                      <span className="swatch" style={{ background: color.hex }} />
-                      <div>
-                        <strong>{color.name}</strong>
-                        <div className="colorHex">{color.hex}</div>
-                      </div>
-                      <button className="small" onClick={() => setColorForm({ name: color.name, hex: color.hex })}>
-                        Copiar
-                      </button>
-                      <button className="small danger" onClick={() => removeColor(color.id)}>
-                        Remover
-                      </button>
+                  <button type="submit">Adicionar</button>
+                </form>
+                <div className="listBox">
+                  {state.colors.map((color) => (
+                    <div className="listRow" key={color.id}>
+                      <span className="colorSwatch" style={{ backgroundColor: color.hex }} />
+                      <span>{color.name}</span>
+                      <code>{color.hex}</code>
+                      <button type="button" onClick={() => removeColor(color.id)}>Remover</button>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
 
-              <div className="panel settingsPanel">
-                <div className="panelTitle">Categorias</div>
-                <div className="colorForm categoryFormGrid">
+              <section>
+                <h3>Categorias</h3>
+                <form className="inlineForm" onSubmit={addCategory}>
                   <input
-                    type="text"
-                    placeholder="Nome da categoria"
                     value={categoryForm.name}
-                    onChange={(e) => setCategoryForm({ name: e.target.value })}
+                    onChange={(event) => setCategoryForm({ name: event.target.value })}
+                    placeholder="Nome da categoria"
                   />
-                  <button onClick={addCategory}>Adicionar</button>
-                </div>
-
-                <div className="colorList">
-                  {categories.map((category) => (
-                    <div key={category.id} className="categoryRow">
-                      <div>
-                        <strong>{category.name}</strong>
-                      </div>
-                      <button className="small danger" onClick={() => removeCategory(category.id)}>
-                        Remover
-                      </button>
+                  <button type="submit">Adicionar</button>
+                </form>
+                <div className="listBox">
+                  {state.categories.map((category) => (
+                    <div className="listRow" key={category.id}>
+                      <span>{category.name}</span>
+                      <button type="button" onClick={() => removeCategory(category.id)}>Remover</button>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
