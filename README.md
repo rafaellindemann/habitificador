@@ -10,12 +10,7 @@ filtros (mostrar só metas, só aulas, etc),
 
 e um “resumo do período” (sem precisar virar gráfico).
 
+## Bugs
+- No modo tela cheia o scroll não funciona
+- no modo mês, mostrar o dia no mesmo formato que mostra na semana (31/3)
 
-
-
-- O id da tarefa não seria melhor meter um número com Date.now() e não deixar o user editar? 
-- Na criação ou edição, não deixar a meta semanal ser maior que 7, a mensal e anual ser maior que o número de dias? 
-- Uma opção para cadastrar cores para usar com as tarefas, com nome e #hex? 
-- Se o salvamento for feito em um único registro do local storage não fica mais fácil migrar para algum serviço de persistência externa depois? Tô pensando em usar um firebase ou supabase no futuro 
-- Seria legal que a tarefa tivesse uma prop categoria (ex estudo, fit, trabalho...) 
-- Os options dos selects estão com letra branca em fundo branco, só aparece o texto no hover. Resolve aí? Remova o botão "Limpar checks", ele não faz sentido.
