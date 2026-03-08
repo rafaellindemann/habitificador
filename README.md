@@ -2,7 +2,7 @@
 
 Não encontrei um rastreador/gerenciador de hábitos que fizesse o que eu preciso, então comecei a fazer o meu, até pra brincar um pouco. Eu não deveria estar fazendo isso agora, mas meu hiperfoco não concorda.
 
-Versão sendo testada durante o desenvolvimento em: [text](https://habitificador.vercel.app/)
+Versão sendo testada durante o desenvolvimento em: [habitificador.vercel.app](https://habitificador.vercel.app/)
 
 Já temos uma primeira versão de protótipo de interface...
 
