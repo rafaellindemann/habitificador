@@ -13,7 +13,7 @@ e um “resumo do período” (sem precisar virar gráfico).
 - Bolar um dashboard relevante, pode ter gráfico de semana a semana para as semanais e mensal para as mensais.
 - uma visualização por lista;
 - teclas de atalho 'm' para visualização de mês, 'w/s' para ver semana;
-
+- persistência em supabase ou deploy de backend+bd?
 
 
 ## Bugs
