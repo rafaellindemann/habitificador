@@ -17,6 +17,8 @@ e um “resumo do período” (sem precisar virar gráfico).
 <ul>
     <li>[tutorial supabase no Yt - GabulDev](https://www.youtube.com/watch?v=zF4q8qGlREU)</li>
     <li>[Curso gratuito supabase no Yt - NoCode Startup](https://www.youtube.com/watch?v=OztHXOnQLXc)</li>
+    <li>[Masterclass BD relacional e SQL com Supabase - Cod3r](https://www.youtube.com/watch?v=wOcbetwEJD4)</li>
+
 </ul>
 
 
