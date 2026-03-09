@@ -20,6 +20,7 @@ e um “resumo do período” (sem precisar virar gráfico).
     <li>[Masterclass BD relacional e SQL com Supabase - Cod3r](https://www.youtube.com/watch?v=wOcbetwEJD4)</li>
     <li>[Tutorial rápido da FlutterFlow](https://www.youtube.com/watch?v=DqchkmPjzJQ)</li>
     <li>[Sugestões da perplexity](https://www.perplexity.ai/search/encontre-um-video-brasileiro-e-8T3HDILbTXuGwf5yiHc.GA?sm=v)</li>
+    <li>[Doc supabase: "Use Supabase with React"](https://supabase.com/docs/guides/getting-started/quickstarts/reactjs)</li>
 
 </ul>
 
