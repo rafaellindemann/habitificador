@@ -14,7 +14,10 @@ e um “resumo do período” (sem precisar virar gráfico).
 - uma visualização por lista;
 - teclas de atalho 'm' para visualização de mês, 'w/s' para ver semana;
 - persistência em supabase ou deploy de backend+bd?
-    -- [tutorial supabase no Yt](https://www.youtube.com/watch?v=zF4q8qGlREU)
+<ul>
+    <li>[tutorial supabase no Yt - GabulDev](https://www.youtube.com/watch?v=zF4q8qGlREU)</li>
+    <li>[Curso gratuito supabase no Yt - NoCode Startup](https://www.youtube.com/watch?v=OztHXOnQLXc)</li>
+</ul>
 
 
 ## Bugs
