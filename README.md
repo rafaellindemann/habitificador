@@ -19,6 +19,7 @@ e um “resumo do período” (sem precisar virar gráfico).
     <li>[Curso gratuito supabase no Yt - NoCode Startup](https://www.youtube.com/watch?v=OztHXOnQLXc)</li>
     <li>[Masterclass BD relacional e SQL com Supabase - Cod3r](https://www.youtube.com/watch?v=wOcbetwEJD4)</li>
     <li>[Tutorial rápido da FlutterFlow](https://www.youtube.com/watch?v=DqchkmPjzJQ)</li>
+    <li>[Sugestões da perplexity](https://www.perplexity.ai/search/encontre-um-video-brasileiro-e-8T3HDILbTXuGwf5yiHc.GA?sm=v)</li>
 
 </ul>
 
