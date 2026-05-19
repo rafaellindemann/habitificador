@@ -7,9 +7,10 @@ Versão sendo testada durante o desenvolvimento em: [habitificador.vercel.app](h
 Já temos uma primeira versão de protótipo de interface...
 
 ## no radar:
-
-filtros (mostrar só metas, só aulas, etc),
-e um “resumo do período” (sem precisar virar gráfico).
+- incluir uma categoria de 'só registro' ou algo que o valha. Não vale devCoins e não é compromisso, é apenas pra registrar quando fez alguma coisa que pode querer lembrar
+- categoria de remédio?
+- filtros (mostrar só metas, só aulas, etc),
+- e um “resumo do período” (sem precisar virar gráfico).
 - Bolar um dashboard relevante, pode ter gráfico de semana a semana para as semanais e mensal para as mensais.
 - uma visualização por lista;
 - teclas de atalho 'm' para visualização de mês, 'w/s' para ver semana;
